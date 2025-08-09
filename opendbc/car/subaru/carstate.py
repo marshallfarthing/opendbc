@@ -21,12 +21,16 @@ class CarState(CarStateBase):
     cp_alt = can_parsers[Bus.alt]
     ret = structs.CarState()
 
-    throttle_msg = cp.vl["Throttle"] if not (self.CP.flags & SubaruFlags.HYBRID) else cp_alt.vl["Throttle_Hybrid"]
-    ret.gasPressed = throttle_msg["Throttle_Pedal"] > 1e-5
+    throttle_msg = cp.vl["Throttle"] # if not (self.CP.flags & SubaruFlags.HYBRID) else cp_alt.vl["Throttle_Hybrid"]
+    ret.gas = throttle_msg["Throttle_Pedal"] / 255.
+
+    ret.gasPressed = ret.gas > 1e-5
     if self.CP.flags & SubaruFlags.PREGLOBAL:
       ret.brakePressed = cp.vl["Brake_Pedal"]["Brake_Pedal"] > 0
     else:
-      cp_brakes = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
+      # JW-TODO: Fix this
+      cp_brakes = cp
+      # cp_brakes = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
       ret.brakePressed = cp_brakes.vl["Brake_Status"]["Brake"] == 1
 
     cp_es_distance = cp_alt if self.CP.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID) else cp_cam
@@ -39,8 +43,10 @@ class CarState(CarStateBase):
       else:
         ret.accFaulted = eyesight_fault
 
-    cp_wheels = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
-    self.parse_wheel_speeds(ret,
+    # JW-TODO: Fix this
+    cp_wheels = cp
+    # cp_wheels = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
+    ret.wheelSpeeds = self.parse_wheel_speeds(ret,
       cp_wheels.vl["Wheel_Speeds"]["FL"],
       cp_wheels.vl["Wheel_Speeds"]["FR"],
       cp_wheels.vl["Wheel_Speeds"]["RL"],
@@ -56,15 +62,24 @@ class CarState(CarStateBase):
       ret.leftBlindspot = (cp.vl["BSD_RCTA"]["L_ADJACENT"] == 1) or (cp.vl["BSD_RCTA"]["L_APPROACHING"] == 1)
       ret.rightBlindspot = (cp.vl["BSD_RCTA"]["R_ADJACENT"] == 1) or (cp.vl["BSD_RCTA"]["R_APPROACHING"] == 1)
 
-    cp_transmission = cp_alt if self.CP.flags & SubaruFlags.HYBRID else cp
+    cp_transmission = cp # cp_alt if self.CP.flags & SubaruFlags.HYBRID else cp
     can_gear = int(cp_transmission.vl["Transmission"]["Gear"])
     ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(can_gear, None))
 
-    ret.steeringAngleDeg = cp.vl["Steering_Torque"]["Steering_Angle"]
+    # JW-TODO: Specific to CT 2025
+    #add a change?
+    # 1. pull angle from the new message
+    angle = cp.vl["Steering"]["Steering_Angle"]   # right-turn negative, same units as before
+    ret.steeringAngleDeg = angle                 
 
-    if not (self.CP.flags & SubaruFlags.PREGLOBAL):
-      # ideally we get this from the car, but unclear if it exists. diagnostic software doesn't even have it
-      ret.steeringRateDeg = self.angle_rate_calulator.update(ret.steeringAngleDeg, cp.vl["Steering_Torque"]["COUNTER"])
+    # 2. feed the **counter**, not the angle, to the rate filter
+    counter = cp.vl["Steering"]["COUNTER"]        # field must exist in your DBC
+    ret.steeringRateDeg = self.angle_rate_calulator.update(ret.steeringAngleDeg, counter)
+
+    if False:
+      if not (self.CP.flags & SubaruFlags.PREGLOBAL):
+        # ideally we get this from the car, but unclear if it exists. diagnostic software doesn't even have it
+        ret.steeringRateDeg = self.angle_rate_calulator.update(ret.steeringAngleDeg, cp.vl["Steering_Torque"]["COUNTER"])
 
     ret.steeringTorque = cp.vl["Steering_Torque"]["Steer_Torque_Sensor"]
     ret.steeringTorqueEps = cp.vl["Steering_Torque"]["Steer_Torque_Output"]
@@ -73,12 +88,18 @@ class CarState(CarStateBase):
     ret.steeringPressed = abs(ret.steeringTorque) > steer_threshold
 
     cp_cruise = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
-    if self.CP.flags & SubaruFlags.HYBRID:
+    if self.CP.flags & SubaruFlags.LKAS_ANGLE:
       ret.cruiseState.enabled = cp_cam.vl["ES_DashStatus"]['Cruise_Activated'] != 0
       ret.cruiseState.available = cp_cam.vl["ES_DashStatus"]['Cruise_On'] != 0
+
     else:
-      ret.cruiseState.enabled = cp_cruise.vl["CruiseControl"]["Cruise_Activated"] != 0
-      ret.cruiseState.available = cp_cruise.vl["CruiseControl"]["Cruise_On"] != 0
+      if self.CP.flags & SubaruFlags.HYBRID:
+        ret.cruiseState.enabled = cp_cam.vl["ES_DashStatus"]['Cruise_Activated'] != 0
+        ret.cruiseState.available = cp_cam.vl["ES_DashStatus"]['Cruise_On'] != 0
+      else:
+        ret.cruiseState.enabled = cp_cruise.vl["CruiseControl"]["Cruise_Activated"] != 0
+        ret.cruiseState.available = cp_cruise.vl["CruiseControl"]["Cruise_On"] != 0
+
     ret.cruiseState.speed = cp_cam.vl["ES_DashStatus"]["Cruise_Set_Speed"] * CV.KPH_TO_MS
 
     if (self.CP.flags & SubaruFlags.PREGLOBAL and cp.vl["Dash_State2"]["UNITS"] == 1) or \
@@ -127,6 +148,98 @@ class CarState(CarStateBase):
 
   @staticmethod
   def get_can_parsers(CP):
+    messages = [
+      # ("Wheel_Speeds", 50),
+      # ("Brake_Status", 50),
+    ]
+
+    if not (CP.flags & SubaruFlags.HYBRID):
+      messages.append(("CruiseControl", 20))
+
+    return messages
+
+  @staticmethod
+  def get_common_global_es_messages(CP):
+    messages = [
+      ("ES_Brake", 10),
+    ]
+
+    if not (CP.flags & SubaruFlags.HYBRID):
+      messages += [
+        # JW-TODO: These were 20, but I want them less often
+        ("ES_Distance", 10),
+        ("ES_Status", 10)
+      ]
+
+    return messages
+
+  @staticmethod
+  def get_common_preglobal_body_messages():
+    messages = [
+      ("CruiseControl", 50),
+      ("Wheel_Speeds", 50),
+      ("Dash_State2", 1),
+    ]
+
+    return messages
+
+  @staticmethod
+  def get_can_parsers(CP):
+    pt_messages = [
+      # sig_address, frequency
+      ("Dashlights", 10),
+      ("Steering_Torque", 50),
+      ("BodyInfo", 1),
+      ("Brake_Pedal", 50),
+      ("Steering", 80),
+      ("Wheel_Speeds", 50),
+      ("Brake_Status", 50),
+    ]
+
+    if not (CP.flags & SubaruFlags.HYBRID):
+      pt_messages += [
+        ("Throttle", 100),
+        ("Transmission", 80)
+      ]
+
+    if CP.enableBsm:
+      pt_messages.append(("BSD_RCTA", 17))
+
+    # not ct
+    if not (CP.flags & SubaruFlags.PREGLOBAL):
+      if not (CP.flags & SubaruFlags.GLOBAL_GEN2):
+        pt_messages += CarState.get_common_global_body_messages(CP)
+    else:
+      pt_messages += CarState.get_common_preglobal_body_messages()
+
+    if CP.flags & SubaruFlags.PREGLOBAL:
+      cam_messages = [
+        ("ES_DashStatus", 20),
+        ("ES_Distance", 20),
+      ]
+    else:
+      cam_messages = [
+        ("ES_DashStatus", 10),
+        ("ES_LKAS_State", 10),
+      ]
+
+      if not (CP.flags & SubaruFlags.GLOBAL_GEN2):
+        cam_messages += CarState.get_common_global_es_messages(CP)
+
+      if CP.flags & SubaruFlags.SEND_INFOTAINMENT:
+        cam_messages.append(("ES_Infotainment", 10))
+
+    alt_messages = []
+    if CP.flags & SubaruFlags.GLOBAL_GEN2:
+      alt_messages += CarState.get_common_global_body_messages(CP)
+      alt_messages += CarState.get_common_global_es_messages(CP)
+
+    if CP.flags & SubaruFlags.HYBRID:
+      alt_messages += [
+        ("Throttle_Hybrid", 40),
+        ("Transmission", 100)
+      ]
+
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], [], CanBus.main),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [], CanBus.camera),

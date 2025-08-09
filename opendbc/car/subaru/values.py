@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
-from opendbc.car import Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, uds
+from opendbc.car import AngleSteeringLimits, Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, uds
 from opendbc.car.structs import CarParams
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
 from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
@@ -10,6 +10,12 @@ Ecu = CarParams.Ecu
 
 
 class CarControllerParams:
+  ANGLE_LIMITS: AngleSteeringLimits = AngleSteeringLimits(
+    100,
+    ([0., 15., 15.], [5., .8, .8]),
+    ([0., 15., 15.], [5., .4, 0.4]),
+  )
+
   def __init__(self, CP):
     self.STEER_STEP = 2                # how often we update the steer cmd
     self.STEER_DELTA_UP = 50           # torque increase per refresh, 0.8s to max
@@ -57,6 +63,7 @@ class SubaruSafetyFlags(IntFlag):
   GEN2 = 1
   LONG = 2
   PREGLOBAL_REVERSED_DRIVER_TORQUE = 4
+  LKAS_ANGLE = 8
 
 
 class SubaruFlags(IntFlag):
@@ -132,6 +139,14 @@ class CAR(Platforms):
   SUBARU_OUTBACK = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Outback 2020-22", "All", car_parts=CarParts.common([CarHarness.subaru_b]))],
     CarSpecs(mass=1568, wheelbase=2.67, steerRatio=17),
+  )
+  SUBARU_CROSSTREK = SubaruPlatformConfig(
+    [SubaruCarDocs("Subaru Crosstrek 2020-23", "All")],
+    CarSpecs(mass=1836, wheelbase=2.7, steerRatio=13),
+  )
+  SUBARU_CROSSTREK_GEN_3 = SubaruPlatformConfig(
+    [SubaruCarDocs("Subaru Crosstrek 2024-25", "All")],
+    CarSpecs(mass=1529, wheelbase=2.5781, steerRatio=13.5),
   )
   SUBARU_LEGACY = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Legacy 2020-22", "All", car_parts=CarParts.common([CarHarness.subaru_b]))],
@@ -211,7 +226,16 @@ class CAR(Platforms):
     SUBARU_ASCENT.specs,
     flags=SubaruFlags.LKAS_ANGLE,
   )
-
+  SUBARU_CROSSTREK_2024 = SubaruGen2PlatformConfig(
+    [SubaruCarDocs("Subaru Crosstrek 2024", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
+    SUBARU_CROSSTREK_GEN_3.specs,
+    flags=SubaruFlags.LKAS_ANGLE
+  )
+  SUBARU_CROSSTREK_2025 = SubaruGen2PlatformConfig(
+    [SubaruCarDocs("Subaru Crosstrek 2025", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
+    SUBARU_CROSSTREK_GEN_3.specs,
+    flags=SubaruFlags.LKAS_ANGLE
+  )
 
 SUBARU_VERSION_REQUEST = bytes([uds.SERVICE_TYPE.READ_DATA_BY_IDENTIFIER]) + \
   p16(uds.DATA_IDENTIFIER_TYPE.APPLICATION_DATA_IDENTIFICATION)
@@ -274,7 +298,7 @@ FW_QUERY_CONFIG = FwQueryConfig(
   # We don't get the EPS from non-OBD queries on GEN2 cars. Note that we still attempt to match when it exists
   non_essential_ecus={
     Ecu.eps: list(CAR.with_flags(SubaruFlags.GLOBAL_GEN2)),
-  }
+  },
 )
 
 DBC = CAR.create_dbc_map()
