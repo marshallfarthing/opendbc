@@ -511,12 +511,15 @@ FW_VERSIONS = {
       b'\xa1  \x08\x02',
       b'\xa1 "\t\x00',
       b'\xa1 "\t\x01',
+      b'\xa1 $\x17\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x1b\xc0\x10\x00',
       b'\x9b\xc0\x10\x00',
       b'\x9b\xc0\x10\x02',
       b'\x9b\xc0 \x00',
+      b'+\xc0\x10\x11\x00',
+      b'+\xc0\x12\x11\x00',
     ],
     (Ecu.fwdCamera, 0x787, None): [
       b'\x00\x00eJ\x00\x00\x00\x00\x00\x00',
@@ -524,6 +527,9 @@ FW_VERSIONS = {
       b'\x00\x00e\x80\x00\x1f@ \x19\x00',
       b'\x00\x00e\x9a\x00\x00\x00\x00\x00\x00',
       b'\x00\x00e\x9a\x00\x1f@ 1\x00',
+      b' \x02\x0e',
+      b'\x1a!\x08\x00C\x0e!\x08\x018',
+      b'\x1a!\x08\x00C\x00\x00\x00\x00\x00',
     ],
     (Ecu.engine, 0x7e0, None): [
       b'\xbc"`@\x07',
@@ -538,6 +544,9 @@ FW_VERSIONS = {
       b'\xe3,\xa0@\x07',
       b'\xe2,\xa0p\x07',
     ],
+    (Ecu.engine, 0x7a2, None): [
+      b'\x08,\xa1@\x07',
+    ],
     (Ecu.transmission, 0x7e1, None): [
       b'\xa5\xf6D@\x00',
       b'\xa5\xfe\xf6@\x00',
@@ -547,6 +556,9 @@ FW_VERSIONS = {
       b'\xa7\xf6D@\x00',
       b'\xa7\xfe\xf4@\x00',
       b'\xa7\xfe\xf6@\x00',
+    ],
+    (Ecu.transmission, 0x7a3, None): [
+      b'\xa9\x17w!t',
     ],
   },
   CAR.SUBARU_FORESTER_2022: {
@@ -606,24 +618,5 @@ FW_VERSIONS = {
       b'\xa8\xfe\xf41\x00',
     ],
   },
-  CAR.SUBARU_OUTBACK_2025: {
-    (Ecu.abs, 0x7b0, None): [
-      b'\xa1 $\x17\x00',
-    ],
-    (Ecu.eps, 0x746, None): [
-      b'+\xc0\x10\x11\x00',
-      b'+\xc0\x12\x11\x00',
-    ],
-    (Ecu.fwdCamera, 0x787, None): [
-      b' \x02\x0e',
-      b'\x1a!\x08\x00C\x0e!\x08\x018',
-      b'\x1a!\x08\x00C\x00\x00\x00\x00\x00',
-    ],
-    (Ecu.engine, 0x7a2, None): [
-      b'\x08,\xa1@\x07',
-    ],
-    (Ecu.transmission, 0x7a3, None): [
-      b'\xa9\x17w!t',
-    ],
-  }
+
 }
