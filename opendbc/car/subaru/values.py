@@ -226,12 +226,12 @@ class CAR(Platforms):
   SUBARU_OUTBACK_2025 = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Outback 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
     SUBARU_OUTBACK.specs,
-    flags=SubaruFlags.LKAS_ANGLE,
+    flags=SubaruFlags.LKAS_ANGLE
   )
   SUBARU_ASCENT_2023 = SubaruGen2PlatformConfig(
-    [SubaruCarDocs("Subaru Ascent 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
+    [SubaruCarDocs("Subaru Ascent 2025", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
     SUBARU_ASCENT.specs,
-    flags=SubaruFlags.LKAS_ANGLE,
+    flags=SubaruFlags.LKAS_ANGLE
   )
   SUBARU_CROSSTREK_2024 = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Crosstrek 2024", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
