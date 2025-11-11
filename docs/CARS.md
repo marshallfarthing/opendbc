@@ -272,7 +272,7 @@
 |Subaru|Outback 2015-17|EyeSight Driver Assistance|[Dashcam mode](#dashcam)|
 |Subaru|Outback 2018-19|EyeSight Driver Assistance|[Dashcam mode](#dashcam)|
 |Subaru|Outback 2020-22|All|[Upstream](#upstream)|
-|Subaru|Outback 2023|All|[Dashcam mode](#dashcam)|
+|Subaru|Outback 2023|All|[Upstream](#upstream)|
 |Subaru|Solterra 2023-25|Any|[Not compatible](#can-bus-security)|
 |Subaru|XV 2018-19|EyeSight Driver Assistance|[Upstream](#upstream)|
 |Subaru|XV 2020-21|EyeSight Driver Assistance|[Upstream](#upstream)|
